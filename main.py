@@ -109,3 +109,18 @@ print(f"Down days (0): {counts[0]}")
 print(f"Up days (1): {counts[1]}")
 
 print(f"Precision score: {precision_score(predictions['Target'], predictions['Predictions'])}")
+
+#this will give us the percentages
+# went up 53.6% of the time
+# or went down 46.4% of the time
+predictions["Target"].value_counts() / predictions.shape[0]
+
+
+
+#Adding additional predictors to our model - Creating a list of time horizons (in days) to analyze price changes:
+# 2 = 2 days (short-term movement)
+# 5 = 1 week of trading
+# 60 = roughly 3 months of trading
+# 250 = 1 year of trading
+# 1000 = approximately 4 years of trading
+horizons = [2,5,60,250,1000]
