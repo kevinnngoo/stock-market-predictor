@@ -66,5 +66,46 @@ preds = model.predict(test[predictors])
 
 #imports pandas to convert the array into a series
 import pandas as pd
-preds = pd.Series(preds, index=test.index.date)
-print(preds)
+preds = pd.Series(preds, index=test.index)
+# print(preds)
+
+#Calculating the precision score, our model is only going to be right 51% of the time
+# print(precision_score(test['Target'], preds))
+
+#Plot the predictions
+combined = pd.concat([test["Target"], preds], axis=1)
+combined.columns = ['Actual', 'Predicted']  # Give meaningful column names
+combined.plot()
+
+#the orange line (zero) is our predictions, and the blue lines are what happened.
+plt.show()
+
+#Building a backtesting system
+def predict(train, test, predictors, model):
+    model.fit(train[predictors], train["Target"])
+    preds = model.predict(test[predictors])
+    preds = pd.Series(preds, index=test.index, name="Predictions")
+    combined = pd.concat([test["Target"], preds], axis=1)
+    return combined
+
+#  we take the first 10 years of data to predict the 11th year of data and so on.
+def backtest(data, model, predictors, start=2500, step=250):
+    all_predictions = []
+    for i in range(start, data.shape[0], step):
+        train = data.iloc[0:i].copy()
+        test = data.iloc[i:(i+step)].copy()
+        predictions = predict(train, test, predictors, model)
+        all_predictions.append(predictions)
+    return pd.concat(all_predictions)
+
+predictions = backtest(sp500, model, predictors)
+
+# This will predict how many days the market goes up vs down
+# Will guess that the market will go down > 3000 days
+# Will guess that the market will go up > 2000 days
+counts = predictions["Predictions"].value_counts()
+print(f"\nPredictions breakdown:")
+print(f"Down days (0): {counts[0]}")
+print(f"Up days (1): {counts[1]}")
+
+print(f"Precision score: {precision_score(predictions['Target'], predictions['Predictions'])}")
