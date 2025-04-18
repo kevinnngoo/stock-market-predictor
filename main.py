@@ -124,3 +124,51 @@ predictions["Target"].value_counts() / predictions.shape[0]
 # 250 = 1 year of trading
 # 1000 = approximately 4 years of trading
 horizons = [2,5,60,250,1000]
+new_predictors = []
+
+for horizon in horizons:
+    rolling_averages = sp500.rolling(horizon).mean()
+    ratio_column = f"Close_Ratio_{horizon}"
+    sp500[ratio_column] = sp500["Close"] / rolling_averages["Close"]
+
+    trend_column = f"Trend_{horizon}"
+    sp500[trend_column] = sp500.shift(1).rolling(horizon).sum()["Target"]
+    new_predictors += [ratio_column, trend_column]\
+
+sp500 = sp500.dropna()
+
+
+
+#Updating the model with the new predictors
+
+'''
+This code creates a Random Forest model with 200 decision trees and requires 50 samples minimum
+to split a node. The predict function trains the model using our features (predictors) and returns
+probability predictions for market movement. If the model is at least 60% confident (probability >= 0.6),
+it predicts the market will go up (1), otherwise down (0). The predictions are then combined with
+actual values (Target) into a single DataFrame for comparison.
+'''
+model = RandomForestClassifier(n_estimators=200, min_samples_split=50, random_state=1)
+
+def predict(train, test, predictors, model):
+    model.fit(train[predictors], train["Target"])
+    preds = model.predict_proba(test[predictors])[:,1]
+    preds[preds >= 0.6] = 1
+    preds[preds < 0.6] = 0
+    preds = pd.Series(preds, index=test.index, name="Predictions")
+    combined = pd.concat([test["Target"], preds], axis=1)
+    return combined
+
+
+predictions = backtest(sp500, model, new_predictors)
+counts = predictions["Predictions"].value_counts()
+print("\nPrediction counts:")
+print(counts)
+print("\nFull predictions:")
+print(predictions)
+
+
+precision = precision_score(predictions["Target"], predictions["Predictions"])
+print(f"\nModel Precision Score: {precision:.4f}")  # Shows score to 4 decimal places
+print(f"The model is correct {precision * 100:.2f}% of the time")
+
